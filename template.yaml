@@ -1,0 +1,247 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Serverless Resume API
+  REST API built with AWS Lambda, API Gateway, and DynamoDB.
+  Includes API Key authentication, Usage Plan, throttling, and least-privilege IAM.
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Parameters
+# ──────────────────────────────────────────────────────────────────────────────
+Parameters:
+
+  StageName:
+    Type: String
+    Default: prod
+    AllowedValues:
+      - prod
+      - staging
+      - dev
+    Description: >
+      API Gateway deployment stage name.
+      The stage name appears in the base URL: https://<api-id>.execute-api.<region>.amazonaws.com/<stage>
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Globals — applied to every AWS::Serverless::Function unless overridden
+# ──────────────────────────────────────────────────────────────────────────────
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures:
+      - x86_64
+    Timeout: 30         # seconds — generous for cold-start + DynamoDB initialisation
+    MemorySize: 128     # MB — sufficient for a lightweight data-retrieval function
+    Environment:
+      Variables:
+        # Passed to database.py so the table name is never hardcoded in source.
+        DYNAMODB_TABLE_NAME: !Ref ResumeDataTable
+        # Adds src/ to Python's module search path so lambda_function, database,
+        # and response are importable with simple module names (no package prefix).
+        PYTHONPATH: /var/task/src
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Resources
+# ──────────────────────────────────────────────────────────────────────────────
+Resources:
+
+  # ── 1. DynamoDB Table ───────────────────────────────────────────────────────
+  #
+  #  Composite primary key design:
+  #    PK (String) — Partition key  → always "RESUME"
+  #    SK (String) — Sort key       → PERSONAL | SKILLS | EXPERIENCE_NNN | EDUCATION_NNN
+  #
+  #  BillingMode: PAY_PER_REQUEST removes the need to provision read/write capacity.
+  #  Ideal for low-traffic demo workloads with unpredictable access patterns.
+  # ───────────────────────────────────────────────────────────────────────────
+  ResumeDataTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Delete          # Remove table when the stack is torn down
+    Properties:
+      TableName: ResumeData
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      SSESpecification:
+        SSEEnabled: true            # Server-side encryption at rest (AWS-managed key)
+
+  # ── 2. IAM Execution Role ───────────────────────────────────────────────────
+  #
+  #  Principle of least privilege:
+  #    - AWSLambdaBasicExecutionRole → CloudWatch Logs only
+  #    - Inline policy → only the four DynamoDB actions this function needs
+  #    - Resource scoped to the specific table ARN (not "*")
+  # ───────────────────────────────────────────────────────────────────────────
+  ResumeApiFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-lambda-role"
+      Description: Least-privilege execution role for the Resume API Lambda function.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # Grants: logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ResumeDynamoDBAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: AllowResumeTableOperations
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem        # get_personal(), get_skills()
+                  - dynamodb:Query          # get_experience(), get_education(), get_full_resume()
+                  - dynamodb:PutItem        # used by batch_writer during initialisation
+                  - dynamodb:BatchWriteItem # initialise_data() seed write
+                Resource: !GetAtt ResumeDataTable.Arn
+
+  # ── 3. Lambda Function ──────────────────────────────────────────────────────
+  #
+  #  CodeUri: . (project root) packages both src/ and data/ so the seed file
+  #  resume.json is available at /var/task/data/resume.json at runtime.
+  #
+  #  Handler: lambda_function.lambda_handler — Python finds the module via
+  #  PYTHONPATH=/var/task/src set in the Globals section above.
+  # ───────────────────────────────────────────────────────────────────────────
+  ResumeApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-handler"
+      Description: Handles all five REST API endpoints for the Serverless Resume API.
+      CodeUri: .
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt ResumeApiFunctionRole.Arn
+      Events:
+        # Each event maps one API Gateway route to this Lambda function.
+        # Auth.ApiKeyRequired is enforced at the API level (see ResumeApi below).
+        GetFullResume:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ResumeApi
+            Path: /resume
+            Method: GET
+        GetPersonal:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ResumeApi
+            Path: /resume/personal
+            Method: GET
+        GetExperience:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ResumeApi
+            Path: /resume/experience
+            Method: GET
+        GetEducation:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ResumeApi
+            Path: /resume/education
+            Method: GET
+        GetSkills:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ResumeApi
+            Path: /resume/skills
+            Method: GET
+
+  # ── 4. API Gateway REST API + API Key + Usage Plan ──────────────────────────
+  #
+  #  Auth.ApiKeyRequired: true  — all routes require the x-api-key header.
+  #
+  #  Auth.UsagePlan (SAM shorthand):
+  #    SAM automatically creates and links:
+  #      • AWS::ApiGateway::ApiKey
+  #      • AWS::ApiGateway::UsagePlan   (Quota + Throttle settings below)
+  #      • AWS::ApiGateway::UsagePlanKey (association between key and plan)
+  #
+  #  Security note:
+  #    API keys identify a client and enforce usage quotas. They are NOT a
+  #    substitute for strong authentication (use Amazon Cognito or IAM for that).
+  #
+  #  Throttle settings:
+  #    RateLimit  — maximum steady-state requests per second (token-bucket refill rate)
+  #    BurstLimit — maximum concurrent requests allowed before throttling kicks in
+  #
+  #  Quota:
+  #    1,000 requests per calendar month — appropriate for a demonstration API.
+  # ───────────────────────────────────────────────────────────────────────────
+  ResumeApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "${AWS::StackName}-api"
+      StageName: !Ref StageName
+      Description: >
+        Serverless Resume API — REST API with API Key authentication,
+        request throttling (5 req/s, burst 10), and a 1,000 req/month quota.
+      EndpointConfiguration:
+        Type: REGIONAL               # Regional endpoint; no CloudFront edge caching needed
+      Auth:
+        ApiKeyRequired: true         # Applies to all routes in this API
+        UsagePlan:
+          CreateUsagePlan: PER_API   # One dedicated Usage Plan per API deployment
+          Description: !Sub >-
+            Usage plan for ${AWS::StackName}.
+            Quota: 1,000 requests/month. Throttle: 5 req/s, burst 10.
+          Quota:
+            Limit: 1000
+            Period: MONTH
+          Throttle:
+            RateLimit: 5             # Requests per second (steady-state)
+            BurstLimit: 10           # Maximum burst size
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Outputs — displayed after every successful deployment
+# ──────────────────────────────────────────────────────────────────────────────
+Outputs:
+
+  ApiBaseUrl:
+    Description: >
+      API Gateway base URL.
+      Append /resume, /resume/personal, /resume/experience,
+      /resume/education, or /resume/skills to test each endpoint.
+    Value: !Sub "https://${ResumeApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiBaseUrl"
+
+  LambdaFunctionName:
+    Description: Lambda function name (use this to tail CloudWatch Logs).
+    Value: !Ref ResumeApiFunction
+    Export:
+      Name: !Sub "${AWS::StackName}-FunctionName"
+
+  LambdaFunctionArn:
+    Description: Lambda function ARN.
+    Value: !GetAtt ResumeApiFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-FunctionArn"
+
+  DynamoDBTableName:
+    Description: DynamoDB table name.
+    Value: !Ref ResumeDataTable
+    Export:
+      Name: !Sub "${AWS::StackName}-TableName"
+
+  RetrieveApiKeyCommand:
+    Description: >
+      Run this AWS CLI command after deployment to display your API key value.
+      Copy the value and add it as the x-api-key header in Postman.
+    Value: !Sub >-
+      aws apigateway get-api-keys
+      --include-values
+      --query "items[*].{Name:name,Value:value}"
+      --output table
+      --region ${AWS::Region}

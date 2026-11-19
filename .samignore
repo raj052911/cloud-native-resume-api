@@ -1,0 +1,34 @@
+# .samignore
+# Files and directories excluded from the Lambda deployment package.
+# SAM respects these patterns during `sam build` (similar to .gitignore syntax).
+
+# Test suite — not needed at runtime
+tests/
+
+# Documentation and config — not needed at runtime
+README.md
+*.md
+samconfig.toml
+samconfig.toml.example
+.gitignore
+.samignore
+
+# SAM build output — excluded automatically but listed for clarity
+.aws-sam/
+
+# Python cache — SAM cleans these but list them for safety
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Development events (local invoke payloads only)
+events/
+
+# IDE files
+.vscode/
+.idea/
+
+# Environment files
+.env
+*.env

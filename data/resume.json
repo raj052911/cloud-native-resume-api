@@ -1,0 +1,120 @@
+{
+  "personal": {
+    "full_name": "Your Full Name",
+    "title": "Cloud & Backend Engineer",
+    "email": "your.email@example.com",
+    "phone": "+91-XXXXX-XXXXX",
+    "location": "City, State, India",
+    "summary": "Motivated and detail-oriented Computer Science student with hands-on experience in cloud-native application development using AWS. Proficient in building serverless architectures with AWS Lambda, API Gateway, and DynamoDB. Passionate about Infrastructure as Code, automation, and designing scalable, cost-efficient backend systems. Seeking opportunities to apply practical cloud engineering skills in a professional environment.",
+    "linkedin": "https://www.linkedin.com/in/your-linkedin-username",
+    "github": "https://github.com/your-github-username"
+  },
+  "experience": [
+    {
+      "sk": "EXPERIENCE_001",
+      "company": "ABC Technology Solutions Pvt. Ltd.",
+      "title": "Cloud Engineering Intern",
+      "location": "Remote / City, India",
+      "start_date": "June 2025",
+      "end_date": "August 2025",
+      "duration": "3 months",
+      "responsibilities": [
+        "Developed and deployed serverless REST APIs using AWS Lambda and API Gateway.",
+        "Designed and managed DynamoDB tables with optimized partition and sort key strategies.",
+        "Authored AWS SAM templates for repeatable, automated infrastructure deployments.",
+        "Monitored Lambda execution and API latency using Amazon CloudWatch.",
+        "Participated in daily stand-ups and sprint planning in an Agile team environment."
+      ],
+      "achievements": [
+        "Reduced average API response time by 30% by optimizing DynamoDB Query patterns.",
+        "Automated infrastructure provisioning for three microservices using AWS SAM and CloudFormation.",
+        "Received positive feedback from the engineering lead for clean, well-documented code."
+      ]
+    },
+    {
+      "sk": "EXPERIENCE_002",
+      "company": "College Innovation Lab",
+      "title": "Student Project Lead – Cloud Systems",
+      "location": "On-campus, City, India",
+      "start_date": "January 2025",
+      "end_date": "May 2025",
+      "duration": "5 months",
+      "responsibilities": [
+        "Led a team of four students to design and build a serverless document management system on AWS.",
+        "Coordinated task distribution and code reviews using GitHub and Git branching workflows.",
+        "Integrated AWS IAM roles and policies following the principle of least privilege.",
+        "Presented project architecture and results to faculty evaluators and industry guests."
+      ],
+      "achievements": [
+        "Project awarded Best Technical Implementation at the department-level project exhibition.",
+        "Successfully deployed the system to AWS with zero manual configuration steps.",
+        "Documented the entire architecture and deployment process for future student cohorts."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "sk": "EDUCATION_001",
+      "institution": "Your College / University Name",
+      "degree": "Bachelor of Engineering",
+      "field_of_study": "Computer Science and Engineering",
+      "location": "City, State, India",
+      "start_year": "2022",
+      "graduation_year": "2026",
+      "cgpa": "X.XX / 10.00",
+      "relevant_coursework": [
+        "Cloud Computing",
+        "Database Management Systems",
+        "Computer Networks",
+        "Operating Systems",
+        "Data Structures and Algorithms",
+        "Software Engineering"
+      ],
+      "academic_achievements": [
+        "Consistently maintained above-average academic performance throughout the program.",
+        "Active member of the College Cloud Computing Club.",
+        "Completed AWS Cloud Practitioner Essentials training (AWS Skill Builder)."
+      ]
+    }
+  ],
+  "skills": {
+    "programming_languages": [
+      "Python",
+      "SQL",
+      "Bash / Shell Scripting",
+      "JavaScript (basic)"
+    ],
+    "cloud_technologies": [
+      "AWS Lambda",
+      "Amazon API Gateway",
+      "Amazon DynamoDB",
+      "AWS IAM",
+      "AWS CloudFormation",
+      "AWS SAM (Serverless Application Model)",
+      "Amazon CloudWatch",
+      "Amazon S3"
+    ],
+    "databases": [
+      "Amazon DynamoDB",
+      "MySQL",
+      "SQLite"
+    ],
+    "development_tools": [
+      "Git",
+      "GitHub",
+      "Visual Studio Code",
+      "AWS CLI",
+      "AWS SAM CLI",
+      "Postman"
+    ],
+    "other_skills": [
+      "REST API Design",
+      "Infrastructure as Code (IaC)",
+      "Serverless Architecture",
+      "JSON Data Modeling",
+      "Unit Testing with pytest",
+      "Agile / Scrum Methodology",
+      "Technical Documentation"
+    ]
+  }
+}

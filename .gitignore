@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual Environment
+venv/
+.venv/
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# AWS SAM
+.aws-sam/
+
+# Environment and credentials
+.env
+.env.*
+!.env.example
+.aws/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
